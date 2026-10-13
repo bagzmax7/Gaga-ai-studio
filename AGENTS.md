@@ -17,8 +17,8 @@ Dokumen ini merupakan pedoman arsitektur dan memori operasional proyek Gaga AI S
 ## 1. Identitas Git & GitHub
 - **Akun GitHub Resmi**: `bagzmax7` (`bagzmax21@gmail.com`)
 - **Default Branch**: `main`
-- **Pola Remote Origin**: `https://github.com/bagzmax7/<repo-name>.git` (misal: `https://github.com/bagzmax7/gerobok-gaga.git`)
-- **Git Credential**: Menggunakan Windows Credential Manager (`credential.helper=manager`).
+- **Remote Origin**: `https://github.com/bagzmax7/Gaga-ai-studio.git`
+- **Git Credential & TLS**: Menggunakan Windows Credential Manager (`credential.helper=manager`) dan Windows Schannel (`http.sslBackend=schannel`).
 - **Aturan Commit & Push**:
   - Jangan pernah men-commit file konfigurasi rahasia (`.env.local`, `.env`, file log `*.log`, atau file kredensial).
   - Selalu pastikan branch utama adalah `main` (`git branch -M main`).

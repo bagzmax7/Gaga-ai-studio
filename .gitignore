@@ -9,3 +9,4 @@ vercel
 .vercel
 *.log
 supabase/.temp/
+database/

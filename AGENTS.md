@@ -95,3 +95,26 @@ Dokumen ini merupakan pedoman arsitektur dan memori operasional proyek Gaga AI S
   - Polling status task yang sedang berjalan (`QUEUED` / `RUNNING`) dilakukan secara background tanpa memicu re-render seluruh halaman atau blocking spinner penuh.
 - **Video Playback Performance**:
   - Hindari `autoPlay` massal pada semua kartu video galeri. Gunakan `preload="metadata"` dan fitur hover-to-play untuk menjaga pemakaian GPU/CPU tetap ringan.
+
+---
+
+## 6. Auto Retouch Studio Architecture
+- **Master Prompt**: Menggunakan `AUTO_RETOUCH_MASTER_PROMPT` standar studio e-commerce internasional (isolasi background putih `#FFFFFF`, proteksi model manusia/produk, penghapusan manekin, transfer bayangan asli fotografi).
+- **Model Engine**:
+  - `flux-2-edit` (Gaga Klein): Dimensi otomatis terskala hingga 1536px kelipatan 16 (`calculateFluxDimensions`).
+  - `gpt-2.5-sunburst` (Sunburst 2.5): Resolusi 2K dengan pencocokan 10 rasio terdekat (`matchClosestSunburstAspectRatio`).
+  - `nano-banana-2` (Gaga Pro): Resolusi 2K dengan pencocokan rasio fleksibel (`matchClosestAspectRatio`).
+- **Interactive UI**:
+  - Komponen `BeforeAfterSlider`: Perbandingan interaktif drag slider, zoom & pan hingga 400%, dan kontrol touch/mouse.
+  - Multi-version history (v1, v2, v3) per item tanpa perlu upload ulang gambar asli.
+  - Batch download via `JSZip`.
+
+---
+
+## 7. Remove Background Studio Architecture
+- **Engine**: RunningHub Precision Matting AI App (`appId: 2076728877666717698`, node `{ nodeId: '7', fieldName: 'image' }`).
+- **Output**: File PNG transparan dengan alpha channel presisi tinggi.
+- **Interactive UI**:
+  - `BeforeAfterSlider` dengan pola checkerboard transparan (`transparentPattern={true}`).
+  - Batch upload hingga 20 gambar sekaligus.
+  - Opsi download instan PNG dan pengemasan ZIP batch (`[ItemName]-Cutout-v[N].png`).

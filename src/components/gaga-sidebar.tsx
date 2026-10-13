@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { FolderKanban, LayoutDashboard, LogOut, Shield, WandSparkles } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LogOut, Shield, WandSparkles, Layers, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -18,6 +18,8 @@ export default function GagaSidebar() {
   const nav = [
     { href: "/", name: "Studio Overview", icon: LayoutDashboard },
     { href: "/creative-flow", name: "Creative Flow", icon: WandSparkles },
+    { href: "/remove-bg", name: "Remove Background", icon: Layers },
+    { href: "/retouch", name: "Auto Retouch", icon: Sparkles },
     { href: "/projects", name: "Projects", icon: FolderKanban },
   ];
   return <aside className="gaga-sidebar">

@@ -2,6 +2,7 @@ const API_KEY = () => process.env.RUNNINGHUB_API_KEY || "";
 const STANDARD = (process.env.RUNNINGHUB_STANDARD_API_BASE_URL || "https://www.runninghub.ai/openapi/v2").replace(/\/$/, "");
 
 export const IMAGE_MODELS = [
+  { id: "nano-banana-2.1", name: "Nano Banana 2.1 (New)", provider: "Google" },
   { id: "gpt-2.5-sunburst", name: "GPT Image 2.5 Sunburst", provider: "OpenAI" },
   { id: "gpt-2.5-flare", name: "GPT Image 2.5 Flare", provider: "OpenAI" },
   { id: "gpt-2.0", name: "GPT Image 2.0", provider: "OpenAI" },
@@ -20,6 +21,7 @@ export const IMAGE_MODELS = [
 ] as const;
 
 const IMAGE_ENDPOINTS: Record<string, { t2i: string; i2i: string }> = {
+  "nano-banana-2.1": { t2i: "rhart-image-n-nb21/text-to-image", i2i: "rhart-image-n-nb21/image-to-image" },
   "gpt-2.5-sunburst": { t2i: "rhart-image-g-2.5/sunburst/text-to-image", i2i: "rhart-image-g-2.5/sunburst/image-to-image" },
   "gpt-2.5-flare": { t2i: "rhart-image-g-2.5/flare/text-to-image", i2i: "rhart-image-g-2.5/flare/image-to-image" },
   "gpt-2.0": { t2i: "rhart-image-g-2/text-to-image", i2i: "rhart-image-g-2/image-to-image" },
@@ -139,13 +141,138 @@ export async function createVideoTask(input: { model: string; prompt: string; du
 
 function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, value)); }
 
-export async function pollTask(taskId: string, mode: "image" | "video") {
-  if (mode === "image") {
-    const response = await fetch(`${STANDARD}/query`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey()}` }, body: JSON.stringify({ taskId }), cache: "no-store" });
-    const json = await response.json();
-    return { status: String(json.status || "RUNNING").toUpperCase(), outputs: (json.results || []).filter((result: { url?: string }) => result.url).map((result: { url: string; outputType?: string }) => ({ fileUrl: result.url, fileType: result.outputType || "image/png" })), error: json.errorMessage || null };
+export async function generateImageI2I(input: {
+  model: string;
+  prompt: string;
+  imageUrl: string;
+  aspectRatio?: string;
+  resolution?: string;
+  customWidth?: number;
+  customHight?: number;
+}) {
+  const endpoints = IMAGE_ENDPOINTS[input.model] || IMAGE_ENDPOINTS["nano-banana-2"];
+  const endpoint = endpoints.i2i;
+  let payload: Record<string, unknown>;
+
+  if (input.model === "flux-2-edit") {
+    payload = {
+      prompt: input.prompt,
+      imageUrl: input.imageUrl,
+      width: input.customWidth || 1024,
+      height: input.customHight || 1024,
+    };
+  } else {
+    const isHighRes = input.model === "nano-banana-2.1" || input.model.startsWith("gpt-2.5");
+    const res = isHighRes && input.resolution?.toUpperCase() === "1K" ? "2K" : (input.resolution || (isHighRes ? "2K" : "1K"));
+    payload = {
+      prompt: input.prompt,
+      imageUrls: [input.imageUrl],
+      aspectRatio: input.aspectRatio || "1:1",
+      resolution: res,
+    };
   }
-  const response = await fetch(`${STANDARD}/query`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey()}` }, body: JSON.stringify({ taskId }), cache: "no-store" });
+
+  const response = await fetch(`${STANDARD}/${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey()}` },
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
   const json = await response.json();
-  return { status: String(json.status || "RUNNING").toUpperCase(), outputs: (json.results || []).filter((result: { url?: string }) => result.url).map((result: { url: string; outputType?: string }) => ({ fileUrl: result.url, fileType: result.outputType || "video/mp4" })), error: json.errorMessage || null };
+  if (!response.ok || json.errorCode || json.errorMessage) {
+    throw new Error(json.errorMessage || `Image I2I request failed (${response.status}).`);
+  }
+  const taskId = json.taskId || json.task_id;
+  if (!taskId) throw new Error("Image provider did not return a task ID.");
+  return String(taskId);
+}
+
+export async function runAiApp(input: {
+  appId: string;
+  nodeInfoList: Array<{ nodeId: string; fieldName: string; fieldValue: string }>;
+}) {
+  const baseUrl = (process.env.RUNNINGHUB_BASE_URL || "https://www.runninghub.ai").replace(/\/$/, "");
+  const response = await fetch(`${baseUrl}/openapi/v2/run/ai-app/${input.appId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey()}`,
+    },
+    body: JSON.stringify({
+      nodeInfoList: input.nodeInfoList,
+      instanceType: "default",
+      usePersonalQueue: "false",
+    }),
+    cache: "no-store",
+  });
+
+  const json = await response.json();
+  if (!response.ok || json.errorCode || json.errorMessage || (json.code !== undefined && json.code !== 0 && json.code !== 200)) {
+    throw new Error(json.errorMessage || json.msg || `AI App execution failed (${response.status}).`);
+  }
+  const taskId = json.taskId || json.data?.taskId || json.data?.task_id;
+  if (!taskId) throw new Error("AI App did not return a task ID.");
+  return String(taskId);
+}
+
+export async function queryTaskOutputs(taskId: string) {
+  const baseUrl = (process.env.RUNNINGHUB_BASE_URL || "https://www.runninghub.ai").replace(/\/$/, "");
+  const key = apiKey();
+  const response = await fetch(`${baseUrl}/task/openapi/outputs`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      apiKey: key,
+      taskId,
+    }),
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+export async function pollTask(taskId: string, mode: "image" | "video") {
+  const response = await fetch(`${STANDARD}/query`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey()}` },
+    body: JSON.stringify({ taskId }),
+    cache: "no-store",
+  });
+  const json = await response.json();
+  const defaultMime = mode === "image" ? "image/png" : "video/mp4";
+
+  let outputs = (json.results || [])
+    .filter((result: { url?: string }) => result.url)
+    .map((result: { url: string; outputType?: string }) => ({
+      fileUrl: result.url,
+      fileType: result.outputType || defaultMime,
+    }));
+
+  const status = String(json.status || "RUNNING").toUpperCase();
+
+  // Fallback for ComfyUI / AI App tasks when results is empty but status is SUCCESS
+  if (status === "SUCCESS" && outputs.length === 0) {
+    try {
+      const outputsData = await queryTaskOutputs(taskId);
+      if (outputsData?.data && Array.isArray(outputsData.data)) {
+        outputs = outputsData.data
+          .filter((item: { fileUrl?: string }) => item.fileUrl)
+          .map((item: { fileUrl: string; fileType?: string }) => ({
+            fileUrl: item.fileUrl,
+            fileType: item.fileType || defaultMime,
+          }));
+      }
+    } catch {
+      // Ignore fallback error
+    }
+  }
+
+  return {
+    status,
+    outputs,
+    error: json.errorMessage || null,
+  };
 }

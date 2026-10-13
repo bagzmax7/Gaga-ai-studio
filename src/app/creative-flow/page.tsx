@@ -19,14 +19,16 @@ import { downloadAsset } from '@/lib/download';
 
 // ─── Model Configs ─────────────────────────────────────────────────────────
 const IMAGE_MODELS = [
+  { id: 'nano-banana-2.1', name: 'Nano Banana 2.1 (New)', logo: '/model-logos/Gemini.png', stats: ['2K-4K', 'Latest'] },
   { id: 'gpt-2.5-sunburst', name: 'GPT Image 2.5 Sunburst (New)', logo: '/model-logos/GPT.png', stats: ['2K-4K', 'Photoreal Ultra'] },
   { id: 'gpt-2.5-flare', name: 'GPT Image 2.5 Flare (New)', logo: '/model-logos/GPT.png', stats: ['2K-4K', 'Dynamic Flare'] },
   { id: 'nano-banana-pro', name: 'Nano Banana Pro (Recommended)', logo: '/model-logos/Gemini.png', stats: ['1K-4K', 'High Quality'] },
   { id: 'nano-banana-2', name: 'Nano Banana 2 (Recommended)', logo: '/model-logos/Gemini.png', stats: ['1K-4K', 'Balanced'] },
-  { id: 'nano-banana-2-lite', name: 'Nano Banana 2 Lite (Fast)', logo: '/model-logos/Gemini.png', stats: ['1K Only', 'Fastest'] },
   { id: 'gpt-2.0', name: 'GPT Image 2.0 (Standard)', logo: '/model-logos/GPT.png', stats: ['1K-4K', 'Standard'] },
   { id: 'flux-2-edit', name: 'Flux 2 Edit (Standard)', logo: '/model-logos/Flux.png', stats: ['1K-4K', 'Pro Edit'] },
 ];
+
+const HOT_MODEL_IDS = new Set(['nano-banana-2.1']);
 
 const VIDEO_MODELS = [
   { id: 'seedance-2.0-mini', name: 'Seedance 2.0 Mini (Fast)', logo: '/model-logos/Seedance.png', stats: ['480p-720p', '4s-15s'] },
@@ -42,18 +44,19 @@ const DISABLED_VIDEO_MODELS: string[] = [];
 const ENABLE_VIDEO_BATCH = false;
 
 function resolveImageModelId(rawModel?: string): string {
-  if (!rawModel) return 'nano-banana-2';
+  if (!rawModel) return 'nano-banana-2.1';
   const m = rawModel.toLowerCase().trim();
+  if (m.includes('2.1') || m.includes('nb21')) return 'nano-banana-2.1';
   if (m.includes('sunburst')) return 'gpt-2.5-sunburst';
   if (m.includes('flare')) return 'gpt-2.5-flare';
   if (m.includes('gpt') || m.includes('2046503667076751361')) return 'gpt-2.0';
   if (m.includes('flux') || m.includes('klein') || m.includes('2034877792577191938')) return 'flux-2-edit';
-  if (m.includes('lite') || m.includes('fast')) return 'nano-banana-2-lite';
+  if (m.includes('lite') || m.includes('fast')) return 'nano-banana-2';
   if (m.includes('pro')) return 'nano-banana-pro';
   if (m.includes('banana') || m.includes('nano')) return 'nano-banana-2';
   const exact = IMAGE_MODELS.find(im => im.id === rawModel);
   if (exact) return exact.id;
-  return 'nano-banana-2';
+  return 'nano-banana-2.1';
 }
 
 function resolveVideoModelId(rawModel?: string): string {

@@ -1,0 +1,38 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowDownToLine, ArrowRight, Clapperboard, Clock3, Film, Image as ImageIcon, LoaderCircle, Plus, Sparkles, WandSparkles } from "lucide-react";
+import GagaAuthGate from "@/components/gaga-auth-gate";
+import GagaSidebar from "@/components/gaga-sidebar";
+import { IMAGE_MODELS, VIDEO_MODELS } from "@/lib/runninghub";
+
+type Task = { id: string; mode: "image" | "video"; model: string; prompt: string; status: string; outputs: Array<{ fileUrl?: string; fileType?: string }>; created_at: string };
+const imageModels = IMAGE_MODELS as readonly { id: string; name: string }[];
+const videoModels = VIDEO_MODELS as readonly { id: string; name: string }[];
+const modelName = (model: string) => imageModels.find((m) => m.id === model)?.name || videoModels.find((m) => m.id === model)?.name || model;
+
+export default function Home() {
+  return <GagaAuthGate>{(user) => <Overview userName={user.full_name || user.email.split("@")[0]}/>}</GagaAuthGate>;
+}
+
+function Overview({ userName }: { userName: string }) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => { try { const response = await fetch("/api/tasks?limit=60", { cache: "no-store" }); if (response.ok) { const data = await response.json(); setTasks(data.tasks || []); } } finally { setLoading(false); } }, []);
+  useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 12_000); return () => window.clearInterval(timer); }, [load]);
+  const active = tasks.filter((task) => task.status === "QUEUED" || task.status === "RUNNING");
+  const complete = tasks.filter((task) => task.status === "SUCCESS");
+  const latest = complete.slice(0, 6);
+  const images = tasks.filter((task) => task.mode === "image" && task.status === "SUCCESS").length;
+  const videos = tasks.filter((task) => task.mode === "video" && task.status === "SUCCESS").length;
+  return <div className="gaga-app-shell"><GagaSidebar/><main className="gaga-overview-main"><header className="gaga-topbar"><div><span className="gaga-breadcrumb">WORKSPACE <span>/</span> OVERVIEW</span><h1>Studio Overview</h1></div><Link className="gaga-primary-button top-action" href="/creative-flow"><Plus size={16}/> New creation</Link></header>
+    <section className="gaga-welcome-row"><div><p className="eyebrow">YOUR CREATIVE WORKSPACE</p><h2>Good to see you, {userName}.</h2><p>Pick up where your team’s creative work left off.</p></div><Link href="/creative-flow" className="gaga-inline-link">Open Creative Flow <ArrowRight size={15}/></Link></section>
+    <section className="gaga-stat-row" aria-label="Generation summary"><div className="gaga-stat"><span className="gaga-stat-icon"><ImageIcon size={17}/></span><div><b>{images}</b><span>Images created</span></div></div><div className="gaga-stat"><span className="gaga-stat-icon"><Film size={17}/></span><div><b>{videos}</b><span>Videos created</span></div></div><div className="gaga-stat"><span className="gaga-stat-icon"><LoaderCircle size={17}/></span><div><b>{active.length}</b><span>In progress</span></div></div><div className="gaga-stat"><span className="gaga-stat-icon"><Clock3 size={17}/></span><div><b>{tasks.length}</b><span>Total generations</span></div></div></section>
+    <section className="gaga-tool-strip"><div className="gaga-tool-heading"><div><p className="eyebrow">CREATE</p><h2>Choose a starting point</h2></div><span>Image and video tools are inside one Flow workspace.</span></div><Link href="/creative-flow?mode=image" className="gaga-tool-row"><span className="gaga-tool-icon"><ImageIcon size={18}/></span><span className="gaga-tool-copy"><b>Image creation</b><small>Generate, edit, and iterate on campaign visuals</small></span><span className="gaga-tool-arrow"><ArrowRight size={16}/></span></Link><Link href="/creative-flow?mode=video" className="gaga-tool-row"><span className="gaga-tool-icon"><Clapperboard size={18}/></span><span className="gaga-tool-copy"><b>Video creation</b><small>Turn prompts and reference assets into moving images</small></span><span className="gaga-tool-arrow"><ArrowRight size={16}/></span></Link></section>
+    <section className="gaga-overview-lower"><div className="gaga-activity-panel"><header><div><p className="eyebrow">LIVE QUEUE</p><h2>In progress <span className="gaga-count-pill">{active.length}</span></h2></div><button onClick={() => void load()} aria-label="Refresh task queue"><LoaderCircle size={15} className={loading ? "animate-spin" : ""}/></button></header>{active.length ? <div className="gaga-queue-list">{active.slice(0, 5).map((task) => <div key={task.id} className="gaga-queue-item"><span className="gaga-status-dot"/><div><b>{modelName(task.model)}</b><small>{task.prompt}</small></div><span className="gaga-task-state">{task.status === "QUEUED" ? "Queued" : "Rendering"}</span></div>)}</div> : <div className="gaga-empty-inline"><span className="gaga-empty-mark"><Sparkles size={16}/></span><div><b>{loading ? "Loading your queue" : "No active generations"}</b><small>{loading ? "Checking the latest task status." : "New work will show here while it renders."}</small></div></div>}</div><div className="gaga-tip-panel"><span className="gaga-tip-label"><WandSparkles size={14}/> WORKSPACE</span><h3>Keep your work organized.</h3><p>Use projects in Creative Flow to keep campaign assets and generation history together.</p><Link href="/creative-flow" className="gaga-text-button">Browse projects <ArrowRight size={14}/></Link></div></section>
+    <section className="gaga-recent-panel"><header><div><p className="eyebrow">HISTORY</p><h2>Recent creations</h2></div><Link href="/creative-flow" className="gaga-inline-link">View all <ArrowRight size={14}/></Link></header>{latest.length ? <div className="gaga-recent-grid">{latest.map((task) => { const output = task.outputs?.[0]; const video = task.mode === "video" || output?.fileType?.includes("video"); return <article key={task.id} className="gaga-recent-card"><div className="gaga-recent-media">{output?.fileUrl ? video ? <video src={output.fileUrl} preload="metadata" controls/> : <Image src={output.fileUrl} alt={task.prompt} fill unoptimized sizes="(max-width: 760px) 40vw, 15vw"/> : <span>{video ? <Film size={20}/> : <ImageIcon size={20}/>}</span>}<a href={output?.fileUrl || "#"} download aria-label="Download asset" className={!output?.fileUrl ? "disabled" : ""}><ArrowDownToLine size={14}/></a></div><div className="gaga-recent-meta"><b>{modelName(task.model)}</b><small>{task.prompt}</small></div></article>; })}</div> : <div className="gaga-recent-empty"><p>{loading ? "Loading recent work…" : "Your completed generations will appear here."}</p>{!loading && <Link href="/creative-flow">Create your first asset <ArrowRight size={14}/></Link>}</div>}</section>
+    <footer className="gaga-overview-footer"><span>Gaga AI Studio</span><span>Private internal workspace</span></footer>
+  </main></div>;
+}

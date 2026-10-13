@@ -1,0 +1,32 @@
+{
+  "name": "gaga-ai-studio",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "set NODE_TLS_REJECT_UNAUTHORIZED=0&&next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "admin:provision": "node --env-file=.env.local scripts/provision-admin.mjs",
+    "check:mentions": "node scripts/check-mention-regex.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.106.1",
+    "lucide-react": "^0.468.0",
+    "next": "^16.2.9",
+    "react-hot-toast": "^2.6.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.2.9",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5"
+  }
+}

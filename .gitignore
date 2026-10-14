@@ -10,3 +10,6 @@ vercel
 *.log
 supabase/.temp/
 database/
+
+.vercel
+.env*

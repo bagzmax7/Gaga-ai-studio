@@ -18,10 +18,20 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     try {
       const state = await pollTask(task.provider_task_id, task.mode);
       const status = ["SUCCESS", "FAILED", "CANCELED"].includes(state.status) ? state.status : "RUNNING";
-      if (status !== task.status || state.outputs?.length || state.error) {
-        const { data: updated } = await supabase.from("gaga_tasks").update({ status, outputs: state.outputs || task.outputs, error_message: state.error || null, updated_at: new Date().toISOString() }).eq("id", task.id).eq("user_id", task.user_id).select("*").single();
-        return NextResponse.json({ task: updated || { ...task, status, outputs: state.outputs || task.outputs } });
-      }
+        const updatePayload: Record<string, unknown> = {
+          status,
+          outputs: state.outputs || task.outputs,
+          error_message: state.error || null,
+          updated_at: new Date().toISOString(),
+        };
+        if (state.costUsd !== undefined && state.costUsd > 0) {
+          updatePayload.cost_usd = state.costUsd;
+        }
+        if (state.durationSeconds !== undefined && state.durationSeconds > 0) {
+          updatePayload.duration = String(state.durationSeconds);
+        }
+        const { data: updated } = await supabase.from("gaga_tasks").update(updatePayload).eq("id", task.id).eq("user_id", task.user_id).select("*").single();
+        return NextResponse.json({ task: updated || { ...task, ...updatePayload } });
     } catch (error) {
       console.error("Task reconciliation failed", error);
     }

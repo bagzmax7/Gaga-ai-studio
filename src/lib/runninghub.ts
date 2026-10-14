@@ -253,20 +253,32 @@ export async function pollTask(taskId: string, mode: "image" | "video") {
 
   const status = String(json.status || "RUNNING").toUpperCase();
 
-  // Fallback for ComfyUI / AI App tasks when results is empty but status is SUCCESS
-  if (status === "SUCCESS" && outputs.length === 0) {
+  let costUsd = 0;
+  let durationSeconds = 0;
+  let coins = 0;
+
+  // Enrich with outputs and usage metrics when SUCCESS
+  if (status === "SUCCESS") {
     try {
       const outputsData = await queryTaskOutputs(taskId);
-      if (outputsData?.data && Array.isArray(outputsData.data)) {
-        outputs = outputsData.data
-          .filter((item: { fileUrl?: string }) => item.fileUrl)
-          .map((item: { fileUrl: string; fileType?: string }) => ({
-            fileUrl: item.fileUrl,
-            fileType: item.fileType || defaultMime,
-          }));
+      if (outputsData?.data && Array.isArray(outputsData.data) && outputsData.data.length > 0) {
+        if (outputs.length === 0) {
+          outputs = outputsData.data
+            .filter((item: { fileUrl?: string }) => item.fileUrl)
+            .map((item: { fileUrl: string; fileType?: string }) => ({
+              fileUrl: item.fileUrl,
+              fileType: item.fileType || defaultMime,
+            }));
+        }
+        const first = outputsData.data[0];
+        durationSeconds = first.taskCostTime ? parseInt(String(first.taskCostTime), 10) : 0;
+        const money = first.consumeMoney != null ? parseFloat(String(first.consumeMoney)) : 0;
+        const thirdParty = first.thirdPartyConsumeMoney != null ? parseFloat(String(first.thirdPartyConsumeMoney)) : 0;
+        costUsd = thirdParty > 0 ? thirdParty : money;
+        coins = first.consumeCoins != null ? parseFloat(String(first.consumeCoins)) : 0;
       }
     } catch {
-      // Ignore fallback error
+      // Ignore output query fallback error
     }
   }
 
@@ -274,5 +286,8 @@ export async function pollTask(taskId: string, mode: "image" | "video") {
     status,
     outputs,
     error: json.errorMessage || null,
+    costUsd,
+    durationSeconds,
+    coins,
   };
 }

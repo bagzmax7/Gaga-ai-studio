@@ -22,8 +22,22 @@ export async function GET(request: NextRequest) {
       const state = await pollTask(task.provider_task_id, task.mode);
       const status = ["SUCCESS", "FAILED", "CANCELED"].includes(state.status) ? state.status : "RUNNING";
       if (status !== task.status || state.outputs?.length || state.error) {
-        const outputs = state.outputs?.length ? state.outputs : task.outputs;
-        await supabase.from("gaga_tasks").update({ status, outputs: outputs || [], error_message: state.error || null, updated_at: new Date().toISOString() }).eq("id", task.id).eq("user_id", task.user_id);
+        const resolvedOutputs = state.outputs?.length ? state.outputs : task.outputs;
+        const updatePayload: Record<string, unknown> = {
+          status,
+          outputs: resolvedOutputs || [],
+          error_message: state.error || null,
+          updated_at: new Date().toISOString(),
+        };
+        if (state.costUsd !== undefined && state.costUsd > 0) {
+          updatePayload.cost_usd = state.costUsd;
+          task.cost_usd = state.costUsd;
+        }
+        if (state.durationSeconds !== undefined && state.durationSeconds > 0) {
+          updatePayload.duration = String(state.durationSeconds);
+          task.duration = String(state.durationSeconds);
+        }
+        await supabase.from("gaga_tasks").update(updatePayload).eq("id", task.id);
         task.status = status;
         if (state.outputs?.length) task.outputs = state.outputs;
         if (state.error) task.error_message = state.error;

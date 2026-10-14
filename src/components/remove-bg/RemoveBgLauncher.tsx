@@ -103,7 +103,8 @@ export default function RemoveBgLauncher() {
   }, []);
 
   useEffect(() => {
-    loadProjects();
+    const initialLoad = window.setTimeout(() => void loadProjects(), 0);
+    return () => window.clearTimeout(initialLoad);
   }, [loadProjects]);
 
   // 2. Poll In-Flight Remove Background Tasks
